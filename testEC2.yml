@@ -92,7 +92,7 @@ Resources:
         hostnamectl set-hostname ec2-zabbix-1-cf
         dnf update -y
         dnf install -y wget unzip
-        wget https://raw.githubusercontent.com/kyton61/cf-zabbix/master/setup_primary.sh
+        wget https://raw.githubusercontent.com/kyton61/cf-zabbix/blob/main/setup_primary.sh
         sh setup_primary.sh
       Tags:
         - Key: Name
@@ -118,7 +118,7 @@ Resources:
         hostnamectl set-hostname ec2-zabbix-2-cf
         dnf update -y
         dnf install -y wget unzip
-        wget https://raw.githubusercontent.com/kyton61/cf-zabbix/master/setup_standby.sh
+        wget https://raw.githubusercontent.com/kyton61/cf-zabbix/blob/main/setup_standby.sh
         sh setup_standby.sh
       Tags:
         - Key: Name

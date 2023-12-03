@@ -1,0 +1,191 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Provision EC2 for zabbix
+
+Parameters:
+  KeyName:
+    Description: The EC2 Key Pair to allow SSH Access to the instance
+    Type: "AWS::EC2::KeyPair::KeyName"
+  MyIP:
+    Description: IP address allowed to access EC2
+    Type: String
+  # RHEL 9
+  Ec2ImageId:
+    Type: String
+    Default: ami-0a3299a47e8a9111b
+  Ec2InstanceType:
+    Type: String
+    Default: t3.small
+
+Resources:
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.5.0.0/16
+      Tags:
+        - Key: Name
+          Value: vpc-cf
+
+  IGW:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: igw-cf
+
+  # IGWをVPCにアタッチ
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref IGW
+
+  PubSubA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: ap-northeast-1a
+      VpcId: !Ref VPC
+      CidrBlock: 10.5.10.0/24
+      Tags:
+        - Key: Name
+          Value: pub-sub-a-cf
+
+  PubSubRT:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: pub-sub-rt-cf
+
+  # PubSub-インターネット間のルーティング
+  PubSubToInternet:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PubSubRT
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref IGW
+
+  # ルートテーブルをサブネットに関連付け
+  AssoPubSubART:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PubSubA
+      RouteTableId: !Ref PubSubRT
+
+  # zabbix test nodes
+  EC2Zabbix1: 
+    Type: AWS::EC2::Instance
+    Properties: 
+      ImageId: !Ref Ec2ImageId
+      KeyName: !Ref KeyName
+      InstanceType: !Ref Ec2InstanceType
+      IamInstanceProfile: !Ref EC2InstanceProfile
+      NetworkInterfaces: 
+        - AssociatePublicIpAddress: "true"
+          DeviceIndex: "0"
+          SubnetId: !Ref PubSubA
+          PrivateIpAddress: 10.5.10.11
+          GroupSet:
+            - !Ref EC2ZabbixSG
+      UserData: !Base64 |
+        #!/bin/bash
+        hostnamectl set-hostname ec2-zabbix-1-cf
+        dnf update -y
+        dnf install -y wget unzip
+        wget https://raw.githubusercontent.com/kyton61/cf-zabbix/master/setup_primary.sh
+        sh setup_primary.sh
+      Tags:
+        - Key: Name
+          Value: ec2-zabbix-1-cf
+
+  # zabbix test nodes
+  EC2Zabbix2: 
+    Type: AWS::EC2::Instance
+    Properties: 
+      ImageId: !Ref Ec2ImageId
+      KeyName: !Ref KeyName
+      InstanceType: !Ref Ec2InstanceType
+      IamInstanceProfile: !Ref EC2InstanceProfile
+      NetworkInterfaces: 
+        - AssociatePublicIpAddress: "true"
+          DeviceIndex: "0"
+          SubnetId: !Ref PubSubA
+          PrivateIpAddress: 10.5.10.12
+          GroupSet:
+            - !Ref EC2ZabbixSG
+      UserData: !Base64 |
+        #!/bin/bash
+        hostnamectl set-hostname ec2-zabbix-2-cf
+        dnf update -y
+        dnf install -y wget unzip
+        wget https://raw.githubusercontent.com/kyton61/cf-zabbix/master/setup_standby.sh
+        sh setup_standby.sh
+      Tags:
+        - Key: Name
+          Value: ec2-zabbix-2-cf
+
+  # zabbix test node用SG
+  EC2ZabbixSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: ec2-zabbix-sg-cf
+      GroupDescription: Allow SSH and psql and tool
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        # http
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: !Ref MyIP
+        # ssh
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: !Ref MyIP
+        # zabbix-server
+        - IpProtocol: tcp
+          FromPort: 10050
+          ToPort: 10050
+          Description: zabbix-server
+          CidrIp: 10.5.0.0/16
+        # zabbix-agent
+        - IpProtocol: tcp
+          FromPort: 10051
+          ToPort: 10051
+          Description: zabbix-agent
+          CidrIp: 10.5.0.0/16
+
+  EC2IAMRole: 
+    Type: AWS::IAM::Role
+    Properties: 
+      RoleName: ec2-role-cf
+      AssumeRolePolicyDocument: 
+        Version: "2012-10-17"
+        Statement: 
+          - Effect: Allow
+            Principal: 
+              Service: 
+                - "ec2.amazonaws.com"
+            Action: 
+              - "sts:AssumeRole"
+      Path: "/"
+      ManagedPolicyArns: 
+        # 検証用なのでAdmin権限付与
+        - "arn:aws:iam::aws:policy/AdministratorAccess"
+
+  EC2InstanceProfile: 
+    Type: AWS::IAM::InstanceProfile
+    Properties: 
+      Path: "/"
+      Roles: 
+        - Ref: EC2IAMRole
+      InstanceProfileName: ec2-instance-profile-cf
+
+
+Outputs:
+  EC2PublicIP1:
+    Value: !GetAtt EC2Zabbix1.PublicIp
+    Description: Public IP of EC2 instance
+  EC2PublicUP2:
+    Value: !GetAtt EC2Zabbix2.PublicIp
+    Description: Public IP of EC2 instance

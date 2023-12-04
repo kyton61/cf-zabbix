@@ -62,8 +62,6 @@ services:
   secrets:
    - POSTGRES_USER
    - POSTGRES_PASSWORD
-  depends_on:
-   - postgres-server
   networks:
    zbx_net_backend:
      aliases:
@@ -116,9 +114,6 @@ services:
   secrets:
    - POSTGRES_USER
    - POSTGRES_PASSWORD
-  depends_on:
-   - postgres-server
-   - zabbix-server
   healthcheck:
    test: ["CMD", "curl", "-f", "http://localhost:8080/"]
    interval: 10s
@@ -146,6 +141,8 @@ services:
  postgres-server:
   image: postgres:15-alpine
 #  command: -c ssl=on -c ssl_cert_file=/run/secrets/server-cert.pem -c ssl_key_file=/run/secrets/server-key.pem -c ssl_ca_file=/run/secrets/root-ca.pem
+  ports:
+    - "5432:5432"
   volumes:
    - ./zbx_env/var/lib/postgresql/data:/var/lib/postgresql/data:rw
    - ./env_vars/.ZBX_DB_CA_FILE:/run/secrets/root-ca.pem:ro

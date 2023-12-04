@@ -154,6 +154,11 @@ Resources:
           ToPort: 10051
           Description: zabbix-agent
           CidrIp: 10.5.0.0/16
+        # zabbix-web
+        - IpProtocol: tcp
+          FromPort: 8081
+          ToPort: 8081
+          CidrIp: !Ref MyIP
 
   EC2IAMRole: 
     Type: AWS::IAM::Role

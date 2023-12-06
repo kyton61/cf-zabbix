@@ -137,6 +137,10 @@ Resources:
           FromPort: 80
           ToPort: 80
           CidrIp: !Ref MyIP
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 10.5.0.0/16
         # ssh
         - IpProtocol: tcp
           FromPort: 22
@@ -159,6 +163,18 @@ Resources:
           FromPort: 8081
           ToPort: 8081
           CidrIp: !Ref MyIP
+        # JAZ-server
+        - IpProtocol: tcp
+          FromPort: 10061
+          ToPort: 10061
+          Description: JAZ-server
+          CidrIp: 10.5.0.0/16
+        # JAZ-agent
+        - IpProtocol: tcp
+          FromPort: 10055
+          ToPort: 10055
+          Description: JAZ-agent
+          CidrIp: 10.5.0.0/16
 
   EC2IAMRole: 
     Type: AWS::IAM::Role

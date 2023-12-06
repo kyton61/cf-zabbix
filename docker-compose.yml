@@ -1,28 +1,5 @@
 version: '3.5'
 
-networks:
-  zbx_net_frontend:
-    external: 
-      name: zbx_net_frontend
-    driver: bridge
-    driver_opts:
-      com.docker.network.enable_ipv6: "false"
-    ipam:
-      driver: default
-      config:
-      - subnet: 172.16.238.0/24
-  zbx_net_backend:
-    external:
-      name: zbx_net_backend
-    driver: bridge
-    driver_opts:
-      com.docker.network.enable_ipv6: "false"
-    internal: true
-    ipam:
-      driver: default
-      config:
-      - subnet: 172.16.239.0/24
-
 services:
  zabbix-server:
   image: zabbix/zabbix-server-pgsql:6.0.23-alpine
@@ -62,14 +39,6 @@ services:
   secrets:
    - POSTGRES_USER
    - POSTGRES_PASSWORD
-  networks:
-   zbx_net_backend:
-     aliases:
-      - zabbix-server
-      - zabbix-server-pgsql
-      - zabbix-server-alpine-pgsql
-      - zabbix-server-pgsql-alpine
-   zbx_net_frontend:
 #  devices:
 #   - "/dev/ttyUSB0:/dev/ttyUSB0"
   stop_grace_period: 30s
@@ -120,13 +89,6 @@ services:
    timeout: 5s
    retries: 3
    start_period: 30s
-  networks:
-   zbx_net_backend:
-    aliases:
-     - zabbix-web-apache-pgsql
-     - zabbix-web-apache-alpine-pgsql
-     - zabbix-web-apache-pgsql-alpine
-   zbx_net_frontend:
   stop_grace_period: 10s
   sysctls:
    - net.core.somaxconn=65535
@@ -154,12 +116,6 @@ services:
    - POSTGRES_USER
    - POSTGRES_PASSWORD
   stop_grace_period: 1m
-  networks:
-   zbx_net_backend:
-    aliases:
-     - postgres-server
-     - pgsql-server
-     - pgsql-database
 
 volumes:
   snmptraps:
